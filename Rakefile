@@ -151,13 +151,16 @@ task 'two' do
 	println 'task two'
 end
 
-_three = task 'three' => ['two', 'two'] do 
+_three = task 'three', [:title] => ['two', 'two'] do |tsk, args| 
 	println 'task three'
+	println "called #{tsk} (#{args[:title]})"
+	
 
 	println $fact_recorder
 	println $definition_recorder
 end
 
-println _three.invoke
+puts _three.methods
+println _three.invoke 12
 
 
