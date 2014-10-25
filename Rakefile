@@ -1,13 +1,19 @@
 
 require 'forwardable'
 require 'rake'
+require 'ostruct'
 
-class Definition
+class Definition < OpenStruct
+	# extend OpenStruct
 	attr_accessor :object
 
-
 	def initialize(obj)
-		@object = obj
+		@object = obj		
+		@source = OpenStruct.new
+	end
+
+	def method_missing(m, *args, &block)
+		@source.send(m, *args, &block)
 	end
 
 	def self.as(obj)
@@ -20,16 +26,23 @@ class Definition
 end
 
 class DefinitionsRecorder
+	include Forwardable
+
 	def initialize
 		@definitions = {}
+
+		def_delegator :@definitions, :[], :[]
 	end
+
 
 	def define(d, &block)
 		println "define> #{d}"
 
 		block.call(d)
-		@definitions[d.object] = block
+		@definitions[d.object] = d
 	end
+
+
 
 	def to_s
 		"recorded definitions '#{@definitions}'"
@@ -130,7 +143,7 @@ class String
 end
 
 define 'Java'.as do | java |
-	println "in block #{java}"	
+	java.version = "1.7"	
 end
 
 fact 'Java'.is_installed?
@@ -160,7 +173,11 @@ _three = task 'three', [:title] => ['two', 'two'] do |tsk, args|
 	println $definition_recorder
 end
 
-puts _three.methods
-println _three.invoke 12
+println "#{$definition_recorder['Java'].version}"
+
+
+#fact 'Java'.is_installed?
+
+# println _three.invoke 12
 
 
