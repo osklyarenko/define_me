@@ -3,6 +3,8 @@ require 'forwardable'
 require 'rake'
 require 'ostruct'
 
+require './lib/common.rb'
+
 class Definition
 	# include Module
 	def initialize(obj)
@@ -90,6 +92,10 @@ class FactRecorder
 		"recorded facts #{@facts}"
 	end
 
+	def has_fact?(f)
+		@facts.has_key? f
+	end
+
 	def facts_hold?
 		println "facts_hold?"
 
@@ -127,7 +133,13 @@ module StringExtensions
 			return Definition.as(self)
 		end
 
-		return Fact.is(self, m)		
+		methods = ["to_int", "to_ary","to_str","to_sym","to_hash", "to_proc", "to_io","to_a", "to_s"]
+		if methods.include? m.to_s
+			super
+			return
+		end
+
+		return Fact.is(self, m)
 	end 
 end
 
@@ -148,8 +160,7 @@ class Fact
 		definition = $definition_recorder[@object]
 
 		println "sending '#{@fact}' to #{definition}"
-		definition.send :say_hi
-		# l = definition.send(@fact)
+		definition.send :"#{@fact}"
 		# println "should be lambda #{l}"
 	end
 
@@ -173,23 +184,24 @@ class String
 end
 
 define 'process'.as do
-	can_be_launched = -> { `#{exe}` }
-	is_installed = -> { println "asdada"; self.can_be_launched }
+	can_be_launched? -> { 
 
-	say_hi ->{ 
-		println 'Hi!d sadhsakdhaksdhak' 
+		_, code = run_shell "#{@exe} nohup", '.'
+		raise 'Failed to run Java' if code == 127		
 	}
+
 end
 
 define 'Java'.as do
 	is_a 'process'
-	@exe = "java"
-	# java.verify_command = 
-	# java.env[:JDK_HOME] is set
-	# java -version returns value	
+	@exe = 'java'
+
+	is_installed? -> {
+		can_be_launched?
+	}	
 end
 
-fact 'Java'.is_installed
+fact 'Java'.is_installed?
 facts_hold?
 
 # println $fact_recorder
