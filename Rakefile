@@ -3,21 +3,44 @@ require 'forwardable'
 require 'rake'
 require 'ostruct'
 
-class Definition < OpenStruct
-	# extend OpenStruct
-	attr_accessor :object
-
+class Definition
+	# include Module
 	def initialize(obj)
 		@object = obj		
 		@source = OpenStruct.new
 	end
 
-	def method_missing(m, *args, &block)
-		@source.send(m, *args, &block)
+	def object
+		@object
+	end
+
+	def method_missing(m, *args, &block)			
+		@source.send(m, *args, &block) unless @definition.respond_to?(m) do
+
+			@definition.send(m, *args, &block)
+		end		
 	end
 
 	def self.as(obj)
 		Definition.new obj
+	end
+
+	def is_a(definition)
+		println "'#{@object}' is_a '#{definition}'"
+
+		@is_a = definition
+	end
+
+	def method_missing(m, *args, &block)
+		println "method #{m} not found on Definition, arg1 #{args[0]}"		
+		
+		println "defined method #{self.class}##{m}()"
+		self.class.send(:define_method, m, args[0])
+	end
+
+	def holds?
+		println "#{self} holds?"
+
 	end
 
 	def to_s
@@ -29,20 +52,17 @@ class DefinitionsRecorder
 	include Forwardable
 
 	def initialize
-		@definitions = {}
+		@definitions = Hash.new
 
 		def_delegator :@definitions, :[], :[]
 	end
 
-
 	def define(d, &block)
 		println "define> #{d}"
-
-		block.call(d)
-		@definitions[d.object] = d
+		d.instance_eval &block
+		
+		@definitions[d.object] = d				
 	end
-
-
 
 	def to_s
 		"recorded definitions '#{@definitions}'"
@@ -70,6 +90,14 @@ class FactRecorder
 		"recorded facts #{@facts}"
 	end
 
+	def facts_hold?
+		println "facts_hold?"
+
+		@facts.each do |key, value|
+			value.holds?
+		end
+	end
+
 	def to_str
 		self.to_s
 	end
@@ -93,22 +121,13 @@ module StringExtensions
 	def method_missing(m, *args, &block)
 		println "method_missing> method #{m} not found on String"
 
-		match = m.to_s.match(/is_(\w+\?)/)
-		
-		method_name, _ = match.captures if match 
-		if (method_name == "installed?")
-			println "installed?> #{self}.is_#{method_name}"
-
-			return Fact.is(self, method_name)
-		end
-
 		if (m == :as)
 			println "as> #{self}.as" 
 
 			return Definition.as(self)
 		end
-		
-		super
+
+		return Fact.is(self, m)		
 	end 
 end
 
@@ -124,8 +143,18 @@ class Fact
 		Fact.new(obj, fact)
 	end
 
+	def holds?		
+		println "fact holds? '#{@object}' #{@fact}"
+		definition = $definition_recorder[@object]
+
+		println "sending '#{@fact}' to #{definition}"
+		definition.send :say_hi
+		# l = definition.send(@fact)
+		# println "should be lambda #{l}"
+	end
+
 	def to_s
-		"#{@object} is #{@fact}"
+		"#{@object} #{@fact}"
 	end
 end
 
@@ -134,6 +163,7 @@ class Object
 	include Forwardable
 
 	def_delegator :$fact_recorder, :fact, :fact
+	def_delegator :$fact_recorder, :facts_hold?, :facts_hold?
 	def_delegator :$definition_recorder, :define, :define
 end
 
@@ -142,11 +172,26 @@ class String
 	include StringExtensions
 end
 
-define 'Java'.as do | java |
-	java.version = "1.7"	
+define 'process'.as do
+	can_be_launched = -> { `#{exe}` }
+	is_installed = -> { println "asdada"; self.can_be_launched }
+
+	say_hi ->{ 
+		println 'Hi!d sadhsakdhaksdhak' 
+	}
 end
 
-fact 'Java'.is_installed?
+define 'Java'.as do
+	is_a 'process'
+	@exe = "java"
+	# java.verify_command = 
+	# java.env[:JDK_HOME] is set
+	# java -version returns value	
+end
+
+fact 'Java'.is_installed
+facts_hold?
+
 # println $fact_recorder
 
 # fact 'Cassandra'.can_be_installed?
@@ -173,11 +218,5 @@ _three = task 'three', [:title] => ['two', 'two'] do |tsk, args|
 	println $definition_recorder
 end
 
-println "#{$definition_recorder['Java'].version}"
-
-
-#fact 'Java'.is_installed?
-
-# println _three.invoke 12
-
-
+println $fact_recorder
+println $definition_recorder
