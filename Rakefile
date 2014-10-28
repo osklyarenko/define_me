@@ -6,7 +6,6 @@ require 'ostruct'
 require './lib/common.rb'
 
 class Definition
-	# include Module
 	def initialize(obj)
 		@object = obj		
 		@source = OpenStruct.new
@@ -43,6 +42,15 @@ class Definition
 	def holds?
 		println "#{self} holds?"
 
+	end
+
+	def	env_set?(var, &block)
+		println "Accessing env var #{var}"
+		println "#{var}: '#{ENV[var]}'"
+		
+		raise "!env var '#{var}' not set" unless ENV[var]
+		
+		println "Result #{Value.new(ENV[var]).instance_eval &block}"
 	end
 
 	def to_s
@@ -183,75 +191,63 @@ class String
 	include StringExtensions
 end
 
-class Ctx	
-	def initialize(*args)
-		@source = OpenStruct.new
-		@args = args		
-	end
-
-	def method_missing(m, *args, &block)			
-		@source.send(m, *args, &block) unless @definition.respond_to?(m) do
-
-			@definition.send(m, *args, &block)
-		end		
+class Value
+	def initialize(val)
+		@value = val
 	end
 end
 
 define 'process'.as do
-	can_be_launched? Proc.new{ 
+	can_be_launched? do |exe, &block|
 
-		_, code = run_shell "#{@exe} nohup", '.'
-		raise 'Failed to run Java' if code == 127
-	}
+		_, code = run_shell "#{exe} nohup", '.'
+		raise "!Failed to run '#{exe}'" if code == 127
 
-	env_set? Proc.new{ |var, block|
-		println "Accessing env var #{var}"
-		println "#{var}: '#{ENV[var]}'"
-		
-		raise "!env var '#{var}' not set" unless ENV[var]
-		
-		# Ctx.new(ENV[var]).instance_eval do
-		# 	class Value
-		# 		def initialize(val)
-		# 			@value = val
-		# 		end
-		# 	end
+		block.call
+	end
 
-		# 	Value.new(ENV[var]).instance_eval &block
-		# end
-
-		class Value
-			def initialize(val)
-				@value = val
+	parse_output do |exe, regex, &block|
+		out = ""
+		success, code = run_shell_parse_output "#{exe}", '.' do |pipe|
+			pipe.each_char do |c|
+				# println c
+				out << c
 			end
 		end
 
-		println "Result #{Value.new(ENV[var]).instance_eval &block}"
+		println "Out " + out
 
-	}
+		raise "!Failed to run '#{exe}'" unless success
 
+		match = regex.match(out)
+
+		Value.new(match).instance_eval &block
+	end
 end
 
 define 'Java'.as do
 	is_a 'process'
-	@exe = 'java'
+	
+	is_installed? do
+		can_be_launched? 'java' do
+			parse_output 'nohup java -version', /java version \"1\.(\d)\./ do
+				ver, _ = @value.captures
+				
+				'7' == ver
+			end			
+		end		
 
-	is_installed? -> {
-		can_be_launched?
-		env_set? 'JAVA_HOME', Proc.new{
+		env_set?('JAVA_HOME') do
 			println "Value #{@value}"
 
 			Dir.exists? @value			
-		}
-	}	
+		end
+	end	
 end
 
 fact 'Java'.is_installed?
 facts_hold?
 
-# println $fact_recorder
-
-# fact 'Cassandra'.can_be_installed?
 
 # Rake.application.init
 # Rake.application.load_rakefile
