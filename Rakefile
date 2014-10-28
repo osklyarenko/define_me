@@ -208,25 +208,26 @@ define 'process'.as do
 		println "Accessing env var #{var}"
 		println "#{var}: '#{ENV[var]}'"
 		
-		raise '!!! to run Java' unless ENV[var]
-
-		println block
-		# block.call
+		raise "!env var '#{var}' not set" unless ENV[var]
 		
-		println Ctx.new(ENV[var])
-		Ctx.new(ENV[var]).instance_eval do
-			println @args
+		# Ctx.new(ENV[var]).instance_eval do
+		# 	class Value
+		# 		def initialize(val)
+		# 			@value = val
+		# 		end
+		# 	end
 
-			class A
-				def initialize(dir)
-					@dir = dir
-				end
+		# 	Value.new(ENV[var]).instance_eval &block
+		# end
+
+		class Value
+			def initialize(val)
+				@value = val
 			end
-
-			A.new(@args[0]).instance_eval &block
-			# block.call
 		end
-		# Ctx.new(ENV[var]).instance_eval Proc.new{block.call} unless block
+
+		println "Result #{Value.new(ENV[var]).instance_eval &block}"
+
 	}
 
 end
@@ -238,13 +239,10 @@ define 'Java'.as do
 	is_installed? -> {
 		can_be_launched?
 		env_set? 'JAVA_HOME', Proc.new{
-			println @dir
-		}
-		# env_set? 'JAVA_HOME', Proc.new{
-		# 	# println "Checking if dir '#{@args[0]}' exists"
+			println "Value #{@value}"
 
-		# 	# Dir.exists? @args[0]
-		# }
+			Dir.exists? @value			
+		}
 	}	
 end
 
