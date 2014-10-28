@@ -37,7 +37,7 @@ class Definition
 		println "method #{m} not found on Definition, arg1 #{args[0]}"		
 		
 		println "defined method #{self.class}##{m}()"
-		self.class.send(:define_method, m, args[0])
+		self.class.send(:define_method, m, *args)
 	end
 
 	def holds?
@@ -133,9 +133,10 @@ module StringExtensions
 			return Definition.as(self)
 		end
 
-		methods = ["to_int", "to_ary","to_str","to_sym","to_hash", "to_proc", "to_io","to_a", "to_s"]
+		methods = ["to_int", "to_path", "to_ary","to_str","to_sym","to_hash", "to_proc", "to_io","to_a", "to_s"]
 		if methods.include? m.to_s
 			super
+
 			return
 		end
 
@@ -161,7 +162,6 @@ class Fact
 
 		println "sending '#{@fact}' to #{definition}"
 		definition.send :"#{@fact}"
-		# println "should be lambda #{l}"
 	end
 
 	def to_s
@@ -183,11 +183,50 @@ class String
 	include StringExtensions
 end
 
+class Ctx	
+	def initialize(*args)
+		@source = OpenStruct.new
+		@args = args		
+	end
+
+	def method_missing(m, *args, &block)			
+		@source.send(m, *args, &block) unless @definition.respond_to?(m) do
+
+			@definition.send(m, *args, &block)
+		end		
+	end
+end
+
 define 'process'.as do
-	can_be_launched? -> { 
+	can_be_launched? Proc.new{ 
 
 		_, code = run_shell "#{@exe} nohup", '.'
-		raise 'Failed to run Java' if code == 127		
+		raise 'Failed to run Java' if code == 127
+	}
+
+	env_set? Proc.new{ |var, block|
+		println "Accessing env var #{var}"
+		println "#{var}: '#{ENV[var]}'"
+		
+		raise '!!! to run Java' unless ENV[var]
+
+		println block
+		# block.call
+		
+		println Ctx.new(ENV[var])
+		Ctx.new(ENV[var]).instance_eval do
+			println @args
+
+			class A
+				def initialize(dir)
+					@dir = dir
+				end
+			end
+
+			A.new(@args[0]).instance_eval &block
+			# block.call
+		end
+		# Ctx.new(ENV[var]).instance_eval Proc.new{block.call} unless block
 	}
 
 end
@@ -198,6 +237,14 @@ define 'Java'.as do
 
 	is_installed? -> {
 		can_be_launched?
+		env_set? 'JAVA_HOME', Proc.new{
+			println @dir
+		}
+		# env_set? 'JAVA_HOME', Proc.new{
+		# 	# println "Checking if dir '#{@args[0]}' exists"
+
+		# 	# Dir.exists? @args[0]
+		# }
 	}	
 end
 
@@ -228,6 +275,10 @@ _three = task 'three', [:title] => ['two', 'two'] do |tsk, args|
 
 	println $fact_recorder
 	println $definition_recorder
+end
+
+task :default do
+	println 'default task'
 end
 
 println $fact_recorder
