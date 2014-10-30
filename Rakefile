@@ -45,12 +45,11 @@ class Definition
 	end
 
 	def	env_set?(var, &block)
-		println "Accessing env var #{var}"
-		println "#{var}: '#{ENV[var]}'"
+		println "Accessing env var '#{var}'"
 		
 		raise "!env var '#{var}' not set" unless ENV[var]
 		
-		println "Result #{Value.new(ENV[var]).instance_eval &block}"
+		raise 'Evaluation failed' unless Value.new(ENV[var]).instance_eval &block		
 	end
 
 	def to_s
@@ -67,7 +66,8 @@ class DefinitionsRecorder
 		def_delegator :@definitions, :[], :[]
 	end
 
-	def define(d, &block)
+	def define(name, &block)
+		d = Definition.as(name)
 		println "define> #{d}"
 		d.instance_eval &block
 		
@@ -135,12 +135,6 @@ module StringExtensions
 	def method_missing(m, *args, &block)
 		println "method_missing> method #{m} not found on String"
 
-		if (m == :as)
-			println "as> #{self}.as" 
-
-			return Definition.as(self)
-		end
-
 		methods = ["to_int", "to_path", "to_ary","to_str","to_sym","to_hash", "to_proc", "to_io","to_a", "to_s"]
 		if methods.include? m.to_s
 			super
@@ -197,7 +191,7 @@ class Value
 	end
 end
 
-define 'process'.as do
+define 'process' do
 	can_be_launched? do |exe, &block|
 
 		_, code = run_shell "#{exe} nohup", '.'
@@ -210,7 +204,6 @@ define 'process'.as do
 		out = ""
 		success, code = run_shell_parse_output "#{exe}", '.' do |pipe|
 			pipe.each_char do |c|
-				# println c
 				out << c
 			end
 		end
@@ -221,11 +214,11 @@ define 'process'.as do
 
 		match = regex.match(out)
 
-		Value.new(match).instance_eval &block
+		raise 'Evaluation failed' unless Value.new(match).instance_eval &block
 	end
 end
 
-define 'Java'.as do
+define 'Java' do
 	is_a 'process'
 	
 	is_installed? do
@@ -237,9 +230,8 @@ define 'Java'.as do
 			end			
 		end		
 
-		env_set?('JAVA_HOME') do
-			println "Value #{@value}"
-
+		env_set? 'JAVA_HOME' do
+			
 			Dir.exists? @value			
 		end
 	end	
