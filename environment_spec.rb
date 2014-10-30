@@ -1,11 +1,8 @@
 require './definitions.rb'
 
 describe 'Java'.def do
-	it 'is installed' do		
-		'Java'.def.should be_installed
-	end
-
-	it 'has JAVA_HOME set' do
+	it 'is configured' do		
 		'Java'.def.should have_JAVA_HOME_set
+		'Java'.def.should be_installed		
 	end
 end
