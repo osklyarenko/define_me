@@ -8,29 +8,14 @@ module ObjectExtensions
 	def println(arg)
 		print "#{arg}\n"
 	end
-
-	def fact(f)
-		defined? $fact_recorder 
-	end
 end
 
 module StringExtensions
 
 	def method_missing(m, *args, &block)
-		println "method_missing> method #{m} not found on String"
+		super unless m == :def
 
-		if m == :def
-			return $definition_recorder[self]			
-		end
-
-		methods = ["to_int", "to_path", "to_ary","to_str","to_sym","to_hash", "to_proc", "to_io","to_a", "to_s"]
-		if methods.include? m.to_s
-			super
-
-			return
-		end
-
-		return Fact.is(self, m)
+		$definition_recorder[self]
 	end 
 end
 
@@ -39,7 +24,6 @@ class Object
 	include Forwardable
 
 	def_delegator :$fact_recorder, :fact, :fact
-	def_delegator :$fact_recorder, :facts_hold?, :facts_hold?
 	def_delegator :$definition_recorder, :define, :define
 end
 
@@ -75,26 +59,14 @@ class Definition
 	end
 
 	def is_a(definition)
-		println "'#{@object}' is_a '#{definition}'"
-
 		@is_a = definition
 	end
 
 	def method_missing(m, *args, &block)
-		println "method #{m} not found on Definition, arg1 #{args[0]}"		
-		
-		println "defined method #{self.class}##{m}()"
-		self.class.send(:define_method, m, *args)
-	end
-
-	def holds?
-		println "#{self} holds?"
-
+		self.class.send(:define_method, m, *args, &block)
 	end
 
 	def	env_set?(var, &block)
-		println "Accessing env var '#{var}'"
-		
 		ENV[var] and Value.new(ENV[var]).instance_eval &block
 	end
 
@@ -114,7 +86,6 @@ class DefinitionsRecorder
 
 	def define(name, &block)
 		d = Definition.as(name)
-		println "define> #{d}"
 		d.instance_eval &block
 		
 		@definitions[d.object] = d				
@@ -141,14 +112,6 @@ class Fact
 		Fact.new(obj, fact)
 	end
 
-	def holds?		
-		println "fact holds? '#{@object}' #{@fact}"
-		definition = $definition_recorder[@object]
-
-		println "sending '#{@fact}' to #{definition}"
-		definition.send :"#{@fact}"
-	end
-
 	def to_s
 		"#{@object} #{@fact}"
 	end
@@ -171,14 +134,6 @@ class FactRecorder
 
 	def has_fact?(f)
 		@facts.has_key? f
-	end
-
-	def facts_hold?
-		println "facts_hold?"
-
-		@facts.each do |key, value|
-			value.holds?
-		end
 	end
 
 	def to_str

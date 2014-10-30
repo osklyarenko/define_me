@@ -2,7 +2,7 @@ require './define_me.rb'
 
 define 'process' do
 	can_be_launched? do |exe, &block|
-		_, code = run_shell "#{exe} nohup", '.'
+		_, code = run_shell "nohup #{exe}", '.'
 		
 		return block.call unless code == 127
 	end
