@@ -3,6 +3,9 @@ README
 To launch execute
 	rspec  environment_spec.rb --color
 
+This silly DSL demonstrates that L-language is more or less irrelevant for DSLs. You can do all sorts of tricks with your language of choice. Your DSL should reflect your D-domain as accurately as possible.
+---
+
 Environment
 * Mac OS X 10.9
 * Ruby 1.9.3
