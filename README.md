@@ -1,6 +1,6 @@
 README
 ====
-This silly DSL demonstrates that L-language is more or less irrelevant for DSLs. You can do all sorts of tricks with your language of choice. Your DSL should reflect your D-domain as accurately as possible.
+This silly DSL demonstrates that L-language is more or less irrelevant for DSLs. You can do all sorts of tricks with your language of choice. Just remember that your DSL should reflect your D-domain as accurately as possible.
 
 Introduced concepts
 ---
